@@ -26,6 +26,16 @@ def get_client_by_email_or_phone(db: Session, email: str, phone: str):
         or_(Client.email == email, Client.phone == phone)
     ).first()
 
+# ... (твой существующий код) ...
+
+def get_client_by_login(db: Session, login: str):
+    """
+    Ищет клиента по email ИЛИ телефону (используется для входа).
+    """
+    return db.query(Client).filter(
+        or_(Client.email == login, Client.phone == login)
+    ).first()
+
 def create_client(db: Session, client_data: ClientCreate) -> Client:
     """Создает нового клиента в базе данных"""
     hashed_password = get_password_hash(client_data.password)
@@ -44,3 +54,4 @@ def create_client(db: Session, client_data: ClientCreate) -> Client:
     db.refresh(db_client)
     
     return db_client
+

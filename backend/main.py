@@ -2,9 +2,10 @@ from fastapi import FastAPI, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 import models
-from schemas import ClientCreate, ClientResponse
+from schemas import ClientCreate, ClientResponse, LoginRequest, Token
 import crud
-
+from crud import verify_password, get_client_by_login
+from auth import create_access_token
 
 Base.metadata.create_all(bind=engine)
 
@@ -32,3 +33,20 @@ def register_client(client: ClientCreate, db: Session = Depends(get_db)):
         )
     new_client = create_client(db=db, client_data=client)
     return new_client
+
+@app.post("/login", response_model=Token, tags=["Авторизация"])
+def login(request: LoginRequest, db: Session = Depends(get_db)):
+    """
+    Авторизация пользователя (Вход в систему).
+    """
+    client = get_client_by_login(db, login=request.login)
+    
+    if not client or not verify_password(request.password, client.password_hash):
+        raise HTTPException(
+            status_code=401,
+            detail="Неверный логин или пароль. Попробуйте снова или восстановите пароль."
+        )
+    
+    access_token = create_access_token(data={"sub": str(client.id)})
+    
+    return {"access_token": access_token, "token_type": "bearer"}

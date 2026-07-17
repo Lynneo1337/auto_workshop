@@ -43,3 +43,11 @@ class ClientResponse(ClientBase):
 
     class Config:
         from_attributes = True
+
+class LoginRequest(BaseModel):
+    login: str = Field(..., description="Email или телефон для входа")
+    password: str = Field(..., description="Пароль")
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
