@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from models import Client
 from schemas import ClientCreate
 import bcrypt
@@ -15,6 +16,15 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
     password_byte_enc = plain_password.encode('utf-8')
     hashed_password_byte_enc = hashed_password.encode('utf-8')
     return bcrypt.checkpw(password_byte_enc, hashed_password_byte_enc)
+
+def get_client_by_email_or_phone(db: Session, email: str, phone: str):
+    """
+    Ищет клиента по email или телефону.
+    Возвращает объект Client, если найден, или None, если нет.
+    """
+    return db.query(Client).filter(
+        or_(Client.email == email, Client.phone == phone)
+    ).first()
 
 def create_client(db: Session, client_data: ClientCreate) -> Client:
     """Создает нового клиента в базе данных"""
