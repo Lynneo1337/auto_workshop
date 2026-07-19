@@ -109,3 +109,33 @@ class LoginRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+class OrderItemCreate(BaseModel):
+    service_id: int = Field(..., description="ID услуги из справочника")
+    quantity: int = Field(default=1, ge=1, description="Количество")
+
+class OrderCreate(BaseModel):
+    client_id: int
+    car_id: int
+    mechanic_id: Optional[int] = Field(None, description="ID мастера (можно назначить позже)")
+    bay_id: Optional[int] = Field(None, description="ID бокса (можно назначить позже)")
+    planned_start: datetime
+    planned_end: datetime
+    payment_method: Optional[str] = None
+    items: List[OrderItemCreate] = Field(..., description="Список услуг")
+
+class OrderResponse(BaseModel):
+    id: int
+    client_id: int
+    car_id: int
+    mechanic_id: Optional[int]
+    bay_id: Optional[int]
+    status: str
+    planned_start: datetime
+    planned_end: datetime
+    total_cost: Decimal
+    discount_amount: Decimal
+    final_cost: Decimal
+    
+    class Config:
+        from_attributes = True

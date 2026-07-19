@@ -9,7 +9,7 @@ from schemas import (
     ServiceCreate, ServiceResponse,
     BayResponse,
     CallbackRequestCreate, CallbackRequestResponse,
-    LoginRequest, Token
+    LoginRequest, Token, OrderCreate, OrderResponse
 )
 import crud
 from crud import verify_password, get_client_by_login
@@ -94,3 +94,11 @@ def read_root():
         "message": "API Автомастерской работает!",
         "docs": "/docs"
     }
+
+@app.post("/orders/", response_model=OrderResponse, status_code=201, tags=["Заказ-наряды"])
+def create_new_order(order: OrderCreate, db: Session = Depends(get_db)):
+    try:
+        new_order = crud.create_order(db=db, order_data=order)
+        return new_order
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

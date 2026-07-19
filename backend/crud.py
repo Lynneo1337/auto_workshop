@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-from sqlalchemy import or_, and_
-from models import Client, Car, Service, Bay, Callback_Request, Mechanic, Admin, Order, Order_Item, Discount_Rule
-from schemas import ClientCreate, CarCreate, ServiceCreate, CallbackRequestCreate
+from sqlalchemy import or_, and_, func
+from models import Client, Car, Service, Bay, Callback_Request, Mechanic, Admin, Order, Order_Item, Discount_Rule, Order, Order_Item, Service
+from schemas import ClientCreate, CarCreate, ServiceCreate, CallbackRequestCreate, OrderCreate
 import bcrypt
 from datetime import datetime
 
@@ -103,3 +103,86 @@ def get_mechanic_by_login(db: Session, login: str):
 
 def get_admin_by_login(db: Session, login: str):
     return db.query(Admin).filter(Admin.login == login).first()
+
+
+def get_discount_percent(db: Session, visit_count: int) -> float:
+    rule = db.query(Discount_Rule).filter(
+        Discount_Rule.min_visits <= visit_count,
+        Discount_Rule.max_visits >= visit_count
+    ).first()
+    
+    return float(rule.discount_percent) if rule else 0.0
+
+def is_bay_available(db: Session, bay_id: int, start: datetime, end: datetime) -> bool:
+    bay = db.query(Bay).filter(Bay.id == bay_id).first()
+    if not bay:
+        return False
+        
+    overlapping_orders_count = db.query(func.count(Order.id)).filter(
+        and_(
+            Order.bay_id == bay_id,
+            Order.status.notin_(['Завершена', 'Отменена']),
+            Order.planned_start < end,
+            Order.planned_end > start
+        )
+    ).scalar()
+    
+    return (overlapping_orders_count + 1) <= bay.capacity
+
+def create_order(db: Session, order_data: OrderCreate) -> Order:
+    if order_data.bay_id:
+        if not is_bay_available(db, order_data.bay_id, order_data.planned_start, order_data.planned_end):
+            raise ValueError("Выбранный бокс занят в это время или превышен лимит вместимости.")
+            
+    client = get_client_by_id(db, order_data.client_id)
+    if not client:
+        raise ValueError("Клиент не найден.")
+        
+    total_cost = 0.0
+    order_items_data = []
+    
+    for item in order_data.items:
+        service = db.query(Service).filter(Service.id == item.service_id).first()
+        if not service:
+            raise ValueError(f"Услуга с ID {item.service_id} не найдена.")
+            
+        item_cost = float(service.price) * item.quantity
+        total_cost += item_cost
+        order_items_data.append({
+            "service_id": item.service_id,
+            "quantity": item.quantity,
+            "fact_price": service.price # Фактическая цена на момент создания
+        })
+        
+    discount_percent = get_discount_percent(db, client.visit_count)
+    discount_amount = total_cost * (discount_percent / 100)
+    final_cost = total_cost - discount_amount
+    
+    db_order = Order(
+        client_id=order_data.client_id,
+        car_id=order_data.car_id,
+        mechanic_id=order_data.mechanic_id,
+        bay_id=order_data.bay_id,
+        status="Ожидает", # Начальный статус
+        planned_start=order_data.planned_start,
+        planned_end=order_data.planned_end,
+        payment_method=order_data.payment_method,
+        total_cost=total_cost,
+        discount_amount=discount_amount,
+        final_cost=final_cost
+    )
+    
+    db.add(db_order)
+    db.flush() 
+    
+    for item_data in order_items_data:
+        db_item = Order_Item(
+            order_id=db_order.id,
+            **item_data
+        )
+        db.add(db_item)
+        
+    db.commit()
+    db.refresh(db_order)
+    
+    return db_order
