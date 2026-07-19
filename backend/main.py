@@ -9,7 +9,7 @@ from schemas import (
     ServiceCreate, ServiceResponse,
     BayResponse,
     CallbackRequestCreate, CallbackRequestResponse,
-    LoginRequest, Token, OrderCreate, OrderResponse, OrderCompleteRequest, OrderCloseRequest
+    LoginRequest, Token, OrderCreate, OrderResponse, OrderCompleteRequest, OrderCloseRequest,  MechanicAvailabilityRequest, MechanicResponse
 )
 import crud
 from crud import verify_password, get_client_by_login
@@ -122,3 +122,16 @@ def admin_close_order(order_id: int, close_data: OrderCloseRequest, db: Session 
         return crud.close_order_by_admin(db, order_id, close_data)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/mechanics/available", response_model=List[MechanicResponse], tags=["Мастера"])
+def find_available_mechanics(request: MechanicAvailabilityRequest, db: Session = Depends(get_db)):
+    """
+    Поиск свободных мастеров по специализации на заданное время.
+    Возвращает список мастеров, у которых нет накладок в графике.
+    """
+    return crud.get_available_mechanics(
+        db, 
+        specialization=request.specialization, 
+        start=request.planned_start, 
+        end=request.planned_end
+    )

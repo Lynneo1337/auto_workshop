@@ -1,9 +1,10 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
-from models import Client, Car, Service, Bay, Callback_Request, Mechanic, Admin, Order, Order_Item, Discount_Rule, Order, Order_Item, Service
+from models import Client, Car, Service, Bay, Callback_Request, Mechanic, Admin, Order, Order_Item, Discount_Rule, Order, Order_Item, Service, Mechanic
 from schemas import ClientCreate, CarCreate, ServiceCreate, CallbackRequestCreate, OrderCreate
 import bcrypt
 from datetime import datetime
+from typing import List
 
 def get_password_hash(password: str) -> str:
     pwd_bytes = password.encode('utf-8')
@@ -237,3 +238,27 @@ def close_order_by_admin(db: Session, order_id: int, close_data: OrderCloseReque
     db.commit()
     db.refresh(order)
     return order
+
+
+def get_available_mechanics(db: Session, specialization: str, start: datetime, end: datetime) -> List[Mechanic]:
+    """
+    Находит свободных мастеров по специализации на заданное время.
+    """
+    mechanics = db.query(Mechanic).filter(Mechanic.specialization == specialization).all()
+    
+    available_mechanics = []
+    
+    for mechanic in mechanics:
+        overlapping_orders = db.query(Order).filter(
+            and_(
+                Order.mechanic_id == mechanic.id,
+                Order.status.notin_(['Завершена', 'Отменена']),
+                Order.planned_start < end,
+                Order.planned_end > start
+            )
+        ).count()
+        
+        if overlapping_orders == 0:
+            available_mechanics.append(mechanic)
+            
+    return available_mechanics

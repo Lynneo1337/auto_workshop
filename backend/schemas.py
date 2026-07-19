@@ -147,3 +147,18 @@ class OrderCompleteRequest(BaseModel):
 class OrderCloseRequest(BaseModel):
     """Запрос администратора на закрытие заявки и прием оплаты"""
     payment_method: str = Field(..., description="Наличные / Карта / Безнал")
+
+class MechanicAvailabilityRequest(BaseModel):
+    """Запрос на поиск свободного мастера"""
+    specialization: str = Field(..., description="Требуемый профиль (например, 'Электрик')")
+    planned_start: datetime = Field(..., description="Начало работ")
+    planned_end: datetime = Field(..., description="Окончание работ")
+
+class MechanicResponse(BaseModel):
+    """Информация о мастере"""
+    id: int
+    full_name: str
+    specialization: str
+
+    class Config:
+        from_attributes = True
