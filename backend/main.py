@@ -9,7 +9,7 @@ from schemas import (
     ServiceCreate, ServiceResponse,
     BayResponse,
     CallbackRequestCreate, CallbackRequestResponse,
-    LoginRequest, Token, OrderCreate, OrderResponse
+    LoginRequest, Token, OrderCreate, OrderResponse, OrderCompleteRequest, OrderCloseRequest
 )
 import crud
 from crud import verify_password, get_client_by_login
@@ -100,5 +100,25 @@ def create_new_order(order: OrderCreate, db: Session = Depends(get_db)):
     try:
         new_order = crud.create_order(db=db, order_data=order)
         return new_order
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    
+@app.put("/orders/{order_id}/complete", response_model=OrderResponse, tags=["Заказ-наряды"])
+def mechanic_complete_order(order_id: int, mechanic_id: int, db: Session = Depends(get_db)):
+    """
+    Мастер отмечает заказ выполненным.
+    """
+    try:
+        return crud.complete_order_by_mechanic(db, order_id, mechanic_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.post("/orders/{order_id}/close", response_model=OrderResponse, tags=["Заказ-наряды"])
+def admin_close_order(order_id: int, close_data: OrderCloseRequest, db: Session = Depends(get_db)):
+    """
+    Администратор закрывает заказ, принимает оплату и начисляет скидку.
+    """
+    try:
+        return crud.close_order_by_admin(db, order_id, close_data)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

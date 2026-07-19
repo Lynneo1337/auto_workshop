@@ -139,3 +139,11 @@ class OrderResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class OrderCompleteRequest(BaseModel):
+    """Запрос мастера на завершение работ"""
+    pass
+
+class OrderCloseRequest(BaseModel):
+    """Запрос администратора на закрытие заявки и прием оплаты"""
+    payment_method: str = Field(..., description="Наличные / Карта / Безнал")
