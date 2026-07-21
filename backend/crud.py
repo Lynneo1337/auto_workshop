@@ -262,3 +262,49 @@ def get_available_mechanics(db: Session, specialization: str, start: datetime, e
             available_mechanics.append(mechanic)
             
     return available_mechanics
+
+def get_revenue_report(db: Session, start: datetime, end: datetime) -> dict:
+    """
+    Считает общую выручку и количество заказов за период.
+    Учитываем только заказы со статусом 'Завершена'.
+    """
+    result = db.query(
+        func.sum(Order.final_cost),
+        func.count(Order.id)
+    ).filter(
+        Order.status == 'Завершена',
+        Order.created_at >= start,
+        Order.created_at <= end
+    ).first()
+
+    total_revenue = float(result[0]) if result[0] else 0.0
+    
+    return {
+        "total_revenue": total_revenue,
+        "total_orders": result[1]
+    }
+
+def get_popular_services_report(db: Session, start: datetime, end: datetime, limit: int = 5) -> list:
+    """
+    Находит топ самых заказываемых услуг за период.
+    """
+    result = db.query(
+        Service.name,
+        func.sum(Order_Item.quantity),
+        func.sum(Order_Item.fact_price * Order_Item.quantity)
+    ).join(Order_Item, Service.id == Order_Item.service_id)\
+      .join(Order, Order_Item.order_id == Order.id)\
+      .filter(
+          Order.status == 'Завершена',
+          Order.created_at >= start,
+          Order.created_at <= end
+      )\
+      .group_by(Service.name).order_by(func.sum(Order_Item.quantity).desc()).limit(limit).all()
+
+    return [
+        {
+            "service_name": row[0],
+            "total_quantity": int(row[1]),
+            "total_revenue": float(row[2])
+        } for row in result
+    ]

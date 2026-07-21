@@ -9,7 +9,9 @@ from schemas import (
     ServiceCreate, ServiceResponse,
     BayResponse,
     CallbackRequestCreate, CallbackRequestResponse,
-    LoginRequest, Token, OrderCreate, OrderResponse, OrderCompleteRequest, OrderCloseRequest,  MechanicAvailabilityRequest, MechanicResponse
+    LoginRequest, Token, OrderCreate, OrderResponse, OrderCompleteRequest, 
+    OrderCloseRequest,  MechanicAvailabilityRequest, MechanicResponse,
+    RevenueReportResponse, PopularServiceResponse
 )
 import crud
 from crud import verify_password, get_client_by_login
@@ -104,7 +106,12 @@ def create_new_order(order: OrderCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=400, detail=str(e))
     
 @app.put("/orders/{order_id}/complete", response_model=OrderResponse, tags=["Заказ-наряды"])
-def mechanic_complete_order(order_id: int, mechanic_id: int, db: Session = Depends(get_db)):
+def mechanic_complete_order(
+    order_id: int, 
+    mechanic_id: int, 
+    request: OrderCompleteRequest,
+    db: Session = Depends(get_db)
+):
     """
     Мастер отмечает заказ выполненным.
     """
@@ -135,3 +142,27 @@ def find_available_mechanics(request: MechanicAvailabilityRequest, db: Session =
         start=request.planned_start, 
         end=request.planned_end
     )
+
+@app.get("/reports/revenue", response_model=RevenueReportResponse, tags=["Отчеты"])
+def get_revenue_report(
+    start_date: datetime, 
+    end_date: datetime, 
+    db: Session = Depends(get_db)
+):
+    """
+    Отчет по выручке за период (ФТ5).
+    Принимает даты в формате ISO (например, 2023-01-01T00:00:00).
+    """
+    return crud.get_revenue_report(db, start=start_date, end=end_date)
+
+@app.get("/reports/popular-services", response_model=List[PopularServiceResponse], tags=["Отчеты"])
+def get_popular_services_report(
+    start_date: datetime, 
+    end_date: datetime, 
+    limit: int = 5, 
+    db: Session = Depends(get_db)
+):
+    """
+    Отчет по популярным услугам за период (ФТ5).
+    """
+    return crud.get_popular_services_report(db, start=start_date, end=end_date, limit=limit)

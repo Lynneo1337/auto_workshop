@@ -162,3 +162,14 @@ class MechanicResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class RevenueReportResponse(BaseModel):
+    """Ответ отчета по выручке"""
+    total_revenue: float = Field(..., description="Общая сумма выручки")
+    total_orders: int = Field(..., description="Количество закрытых заказов")
+
+class PopularServiceResponse(BaseModel):
+    """Ответ отчета по популярным услугам"""
+    service_name: str = Field(..., description="Название услуги")
+    total_quantity: int = Field(..., description="Сколько раз заказывали")
+    total_revenue: float = Field(..., description="Сколько денег принесла")
