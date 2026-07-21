@@ -103,8 +103,9 @@ class CallbackRequestResponse(CallbackRequestBase):
         from_attributes = True
 
 class LoginRequest(BaseModel):
-    login: str = Field(..., description="Email или телефон")
+    login: str = Field(..., description="Email/телефон (для клиента) или логин (для мастера/админа)")
     password: str = Field(..., description="Пароль")
+    role: str = Field(..., description="Роль: client, mechanic или admin")
 
 class Token(BaseModel):
     access_token: str

@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_, func
 from models import Client, Car, Service, Bay, Callback_Request, Mechanic, Admin, Order, Order_Item, Discount_Rule, Order, Order_Item, Service, Mechanic
-from schemas import ClientCreate, CarCreate, ServiceCreate, CallbackRequestCreate, OrderCreate
+from schemas import ClientCreate, CarCreate, ServiceCreate, CallbackRequestCreate, OrderCreate, OrderCloseRequest
 import bcrypt
 from datetime import datetime
 from typing import List
+
 
 def get_password_hash(password: str) -> str:
     pwd_bytes = password.encode('utf-8')
@@ -187,10 +188,6 @@ def create_order(db: Session, order_data: OrderCreate) -> Order:
     db.refresh(db_order)
     
     return db_order
-
-from models import Client, Order
-from sqlalchemy.orm import Session
-from schemas import OrderCloseRequest
 
 def complete_order_by_mechanic(db: Session, order_id: int, mechanic_id: int) -> Order:
     """

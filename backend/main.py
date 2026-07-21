@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Header, HTTPException
 from sqlalchemy.orm import Session
 from database import engine, Base, get_db
 import models
@@ -15,8 +15,9 @@ from schemas import (
 )
 import crud
 from crud import verify_password, get_client_by_login
-from auth import create_access_token
+from auth import create_access_token, SECRET_KEY, ALGORITHM
 from datetime import datetime
+import jwt
 
 Base.metadata.create_all(bind=engine)
 
@@ -39,14 +40,32 @@ def register_client(client: ClientCreate, db: Session = Depends(get_db)):
 
 @app.post("/login", response_model=Token, tags=["Авторизация"])
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """Авторизация клиента"""
-    client = get_client_by_login(db, login=request.login)
-    if not client or not verify_password(request.password, client.password_hash):
+    """
+    Универсальный вход в систему для Клиента, Мастера и Администратора.
+    """
+    user = None
+    user_id = None
+
+    if request.role == "client":
+        user = crud.get_client_by_login(db, login=request.login)
+        if user: user_id = user.id
+    elif request.role == "mechanic":
+        user = crud.get_mechanic_by_login(db, login=request.login)
+        if user: user_id = user.id
+    elif request.role == "admin":
+        user = crud.get_admin_by_login(db, login=request.login)
+        if user: user_id = user.id
+    else:
+        raise HTTPException(status_code=400, detail="Неверно указана роль (client/mechanic/admin)")
+
+    if not user or not verify_password(request.password, user.password_hash):
         raise HTTPException(
             status_code=401,
-            detail="Неверный логин или пароль"
+            detail="Неверный логин или пароль. Попробуйте снова."
         )
-    access_token = create_access_token(data={"sub": str(client.id), "role": "client"})
+    
+    access_token = create_access_token(data={"sub": str(user_id), "role": request.role})
+    
     return {"access_token": access_token, "token_type": "bearer"}
 
 @app.post("/clients/{client_id}/cars/", response_model=CarResponse, status_code=201, tags=["Автомобили"])
@@ -166,3 +185,33 @@ def get_popular_services_report(
     Отчет по популярным услугам за период (ФТ5).
     """
     return crud.get_popular_services_report(db, start=start_date, end=end_date, limit=limit)
+
+@app.get("/me", tags=["Профиль"])
+def get_my_profile(Authorization: str = Header(...), db: Session = Depends(get_db)):
+    """
+    Возвращает профиль пользователя на основе его JWT токена.
+    """
+    try:
+        token = Authorization.split(" ")[1]
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        role: str = payload.get("role")
+        
+        if user_id is None or role is None:
+            raise HTTPException(status_code=401, detail="Неверный токен")
+            
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Неверный или истекший токен")
+
+    if role == "client":
+        user = crud.get_client_by_id(db, int(user_id))
+        if not user: raise HTTPException(404, "Клиент не найден")
+        return {"role": role, "data": {"id": user.id, "name": user.full_name, "discount": user.current_discount}}
+        
+    elif role == "mechanic":
+        return {"role": role, "data": {"id": user_id, "message": "Профиль мастера"}}
+        
+    elif role == "admin":
+        return {"role": role, "data": {"id": user_id, "message": "Профиль администратора"}}
+        
+    raise HTTPException(400, "Неизвестная роль")
