@@ -18,6 +18,7 @@ from crud import verify_password, get_client_by_login
 from auth import create_access_token, SECRET_KEY, ALGORITHM
 from datetime import datetime
 import jwt
+from fastapi.middleware.cors import CORSMiddleware
 
 Base.metadata.create_all(bind=engine)
 
@@ -25,6 +26,14 @@ app = FastAPI(
     title="API Автомастерской",
     description="Система управления автомастерской",
     version="1.0.0"
+)
+
+app.add_middleware(
+    CORSMiddleware,
+   allow_origins=["http://localhost:5173"],
+   allow_credentials=True,
+   allow_methods=["*"],
+   allow_headers=["*"],
 )
 
 @app.post("/clients/", response_model=ClientResponse, status_code=201, tags=["Клиенты"])
