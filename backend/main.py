@@ -215,7 +215,7 @@ def get_my_profile(Authorization: str = Header(...), db: Session = Depends(get_d
     if role == "client":
         user = crud.get_client_by_id(db, int(user_id))
         if not user: raise HTTPException(404, "Клиент не найден")
-        return {"role": role, "data": {"id": user.id, "name": user.full_name, "discount": user.current_discount}}
+        return {"role": role, "data": {"id": user.id, "name": user.full_name, "discount": user.current_discount, "visitCount": user.visit_count}}
         
     elif role == "mechanic":
         return {"role": role, "data": {"id": user_id, "message": "Профиль мастера"}}
