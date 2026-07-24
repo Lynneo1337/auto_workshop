@@ -5,7 +5,6 @@
       <p class="register-subtitle">Создайте аккаунт клиента</p>
 
       <form @submit.prevent="handleRegister">
-        <!-- ФИО -->
         <div class="form-group">
           <label class="form-label">ФИО</label>
           <input 
@@ -17,7 +16,6 @@
           />
         </div>
 
-        <!-- Телефон -->
         <div class="form-group">
           <label class="form-label">Телефон</label>
           <input 
@@ -30,7 +28,6 @@
           />
         </div>
 
-        <!-- Email -->
         <div class="form-group">
           <label class="form-label">Email</label>
           <input 
@@ -42,7 +39,6 @@
           />
         </div>
 
-        <!-- Пароль -->
         <div class="form-group">
           <label class="form-label">Пароль</label>
           <input 
@@ -54,22 +50,18 @@
           />
         </div>
 
-        <!-- Кнопка регистрации -->
         <button type="submit" class="btn btn-primary btn-full" :disabled="isLoading">
           {{ isLoading ? 'Регистрация...' : 'Зарегистрироваться' }}
         </button>
 
-        <!-- Сообщение об ошибке -->
         <div v-if="error" class="error-message">
           {{ error }}
         </div>
 
-        <!-- Сообщение об успехе -->
         <div v-if="success" class="success-message">
           Регистрация успешна! Перенаправление...
         </div>
 
-        <!-- Ссылка на вход -->
         <div class="login-link">
           <p>Уже есть аккаунт? <router-link to="/login" class="neon-text">Войти</router-link></p>
         </div>
@@ -96,15 +88,12 @@ const error = ref('')
 const success = ref(false)
 const isLoading = ref(false)
 
-// Автоматическая конвертация телефона
 const normalizePhone = () => {
   let val = form.phone.replace(/\s/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '')
   
-  // Если начинается с 8 и длина 11 цифр - меняем на +7
   if (val.startsWith('8') && val.length === 11 && val.slice(1).match(/^\d+$/)) {
     form.phone = '+7' + val.slice(1)
   }
-  // Если начинается с 7 и длина 11 цифр - добавляем +
   else if (val.startsWith('7') && val.length === 11 && val.slice(1).match(/^\d+$/)) {
     form.phone = '+7' + val.slice(1)
   }
@@ -125,7 +114,6 @@ const handleRegister = async () => {
     
     success.value = true
     
-    // Автоматически входим после регистрации
     setTimeout(async () => {
       try {
         const loginResponse = await apiClient.post('/login', {
@@ -138,7 +126,6 @@ const handleRegister = async () => {
         localStorage.setItem('role', 'client')
         router.push('/dashboard')
       } catch (loginErr) {
-        // Если авто-вход не удался, просто перенаправляем на вход
         router.push('/login')
       }
     }, 1500)

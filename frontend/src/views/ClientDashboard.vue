@@ -122,7 +122,6 @@ const newCar = ref({
   vin: ''
 })
 
-// Загрузка данных при монтировании
 onMounted(async () => {
   await loadProfile()
   if (profile.value) {
@@ -157,7 +156,6 @@ const loadCars = async () => {
 
 const loadOrders = async () => {
   try {
-    // Пока используем заглушку, позже добавим endpoint
     orders.value = []
   } catch (error) {
     console.error('Ошибка загрузки заказов:', error)

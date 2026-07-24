@@ -8,9 +8,19 @@
 
       <ul class="nav-links">
         <template v-if="isLoggedIn">
-          <li>
+          <li v-if="userRole === 'client'">
             <router-link to="/dashboard" class="nav-link">
               Личный кабинет
+            </router-link>
+          </li>
+          <li v-if="userRole === 'admin'">
+            <router-link to="/admin" class="nav-link">
+              🔧 Админ-панель
+            </router-link>
+          </li>
+          <li v-if="userRole === 'mechanic'">
+            <router-link to="/mechanic" class="nav-link">
+              Мои заявки
             </router-link>
           </li>
           <li>
@@ -37,20 +47,41 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const isLoggedIn = ref(false)
 
+// Реактивные переменные
+const isLoggedIn = ref(false)
+const userRole = ref(null)
+
+// Функция проверки авторизации
+const checkAuth = () => {
+  const token = localStorage.getItem('token')
+  const role = localStorage.getItem('role')
+  
+  isLoggedIn.value = !!token
+  userRole.value = role
+}
+
+// Проверяем при монтировании
 onMounted(() => {
-  isLoggedIn.value = !!localStorage.getItem('token')
+  checkAuth()
+  
+  // Слушаем изменения в localStorage (если открыто несколько вкладок)
+  window.addEventListener('storage', checkAuth)
+})
+
+// Убираем слушатель при размонтировании
+onUnmounted(() => {
+  window.removeEventListener('storage', checkAuth)
 })
 
 const logout = () => {
   localStorage.removeItem('token')
   localStorage.removeItem('role')
-  isLoggedIn.value = false
+  checkAuth() // Обновляем состояние
   router.push('/login')
 }
 </script>
