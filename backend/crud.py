@@ -208,27 +208,22 @@ def complete_order_by_mechanic(db: Session, order_id: int, mechanic_id: int) -> 
     return order
 
 def close_order_by_admin(db: Session, order_id: int, close_data: OrderCloseRequest) -> Order:
-    """
-    Администратор закрывает заказ, принимает оплату и обновляет скидку клиента (ФТ3).
-    """
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise ValueError("Заказ не найден")
     if order.status not in ["Выполнено", "В работе"]:
-        raise ValueError("Нельзя закрыть заказ с текущим статусом")
-        
+        raise ValueError(f"Нельзя закрыть заказ с текущим статусом: {order.status}")
+    
     order.status = "Завершена"
     order.payment_method = close_data.payment_method
     
     client = db.query(Client).filter(Client.id == order.client_id).first()
     if client:
         client.visit_count += 1
-        
         rule = db.query(Discount_Rule).filter(
             Discount_Rule.min_visits <= client.visit_count,
             Discount_Rule.max_visits >= client.visit_count
         ).first()
-        
         if rule:
             client.current_discount = rule.discount_percent
             

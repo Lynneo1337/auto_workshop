@@ -47,16 +47,14 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
 
-// Реактивные переменные
 const isLoggedIn = ref(false)
 const userRole = ref(null)
 
-// Функция проверки авторизации
 const checkAuth = () => {
   const token = localStorage.getItem('token')
   const role = localStorage.getItem('role')
@@ -65,23 +63,27 @@ const checkAuth = () => {
   userRole.value = role
 }
 
-// Проверяем при монтировании
+const handleStorageChange = (e) => {
+  if (e.key === 'token' || e.key === 'role') {
+    checkAuth()
+  }
+}
+
 onMounted(() => {
   checkAuth()
-  
-  // Слушаем изменения в localStorage (если открыто несколько вкладок)
-  window.addEventListener('storage', checkAuth)
+  window.addEventListener('storage', handleStorageChange)
+  window.addEventListener('auth-change', checkAuth)
 })
 
-// Убираем слушатель при размонтировании
 onUnmounted(() => {
-  window.removeEventListener('storage', checkAuth)
+  window.removeEventListener('storage', handleStorageChange)
+  window.removeEventListener('auth-change', checkAuth)
 })
 
 const logout = () => {
   localStorage.removeItem('token')
   localStorage.removeItem('role')
-  checkAuth() // Обновляем состояние
+  checkAuth()
   router.push('/login')
 }
 </script>

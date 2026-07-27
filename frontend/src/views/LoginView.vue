@@ -11,7 +11,7 @@
             v-model="login" 
             type="text" 
             class="form-input"
-            placeholder="mail@example.com или +79001234567" 
+            placeholder="ivan@example.com или +79001234567" 
             @input="normalizeLogin"
           />
         </div>
@@ -24,15 +24,6 @@
             class="form-input"
             placeholder="Введите пароль" 
           />
-        </div>
-
-        <div class="form-group">
-          <label class="form-label">Роль</label>
-          <select v-model="role" class="form-input">
-            <option value="client">Клиент</option>
-            <option value="mechanic">Мастер</option>
-            <option value="admin">Администратор</option>
-          </select>
         </div>
 
         <button type="submit" class="btn btn-primary btn-full" :disabled="isLoading">
@@ -60,7 +51,6 @@ const router = useRouter()
 
 const login = ref('')
 const password = ref('')
-const role = ref('client')
 const error = ref('')
 const isLoading = ref(false)
 
@@ -82,14 +72,26 @@ const handleLogin = async () => {
   try {
     const response = await apiClient.post('/login', {
       login: login.value,
-      password: password.value,
-      role: role.value
+      password: password.value
     })
     
     localStorage.setItem('token', response.data.access_token)
-    localStorage.setItem('role', role.value)
     
-    router.push('/dashboard')
+    const payload = JSON.parse(atob(response.data.access_token.split('.')[1]))
+    const role = payload.role
+    localStorage.setItem('role', role)
+    
+    window.dispatchEvent(new Event('auth-change'))
+    
+    if (role === 'client') {
+      router.push('/dashboard')
+    } else if (role === 'admin') {
+      router.push('/admin')
+    } else if (role === 'mechanic') {
+      router.push('/mechanic')
+    } else {
+      router.push('/')
+    }
     
   } catch (err) {
     error.value = err.response?.data?.detail || 'Ошибка сети. Попробуйте позже.'

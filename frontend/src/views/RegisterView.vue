@@ -114,21 +114,25 @@ const handleRegister = async () => {
     
     success.value = true
     
-    setTimeout(async () => {
-      try {
-        const loginResponse = await apiClient.post('/login', {
-          login: form.phone,
-          password: form.password,
-          role: 'client'
-        })
-        
-        localStorage.setItem('token', loginResponse.data.access_token)
-        localStorage.setItem('role', 'client')
-        router.push('/dashboard')
-      } catch (loginErr) {
-        router.push('/login')
-      }
-    }, 1500)
+setTimeout(async () => {
+  try {
+    const loginResponse = await apiClient.post('/login', {
+      login: form.phone,
+      password: form.password
+    })
+    
+    localStorage.setItem('token', loginResponse.data.access_token)
+    
+    const payload = JSON.parse(atob(loginResponse.data.access_token.split('.')[1]))
+    localStorage.setItem('role', payload.role)
+    
+    window.dispatchEvent(new Event('auth-change'))
+    
+    router.push('/dashboard')
+  } catch (loginErr) {
+    router.push('/login')
+  }
+}, 1500)
     
   } catch (err) {
     error.value = err.response?.data?.detail || 'Ошибка регистрации. Попробуйте позже.'

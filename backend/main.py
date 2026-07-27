@@ -2,7 +2,6 @@ from fastapi import FastAPI, Depends, HTTPException, status, Header, HTTPExcepti
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import and_, func
 from database import engine, Base, get_db
-import models
 from typing import List, Optional
 from schemas import (
     ClientCreate, ClientResponse, 
@@ -21,7 +20,7 @@ from datetime import datetime
 import jwt
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from models import Order, Mechanic, Bay, Client, Car, Service, Order_Item
+from models import Order, Mechanic, Bay, Client, Car, Service, Order_Item, Callback_Request
 
 
 Base.metadata.create_all(bind=engine)
@@ -53,31 +52,37 @@ def register_client(client: ClientCreate, db: Session = Depends(get_db)):
 
 @app.post("/login", response_model=Token, tags=["Авторизация"])
 def login(request: LoginRequest, db: Session = Depends(get_db)):
-    """
-    Универсальный вход в систему для Клиента, Мастера и Администратора.
-    """
     user = None
     user_id = None
+    role = None
 
-    if request.role == "client":
-        user = crud.get_client_by_login(db, login=request.login)
-        if user: user_id = user.id
-    elif request.role == "mechanic":
-        user = crud.get_mechanic_by_login(db, login=request.login)
-        if user: user_id = user.id
-    elif request.role == "admin":
-        user = crud.get_admin_by_login(db, login=request.login)
-        if user: user_id = user.id
-    else:
-        raise HTTPException(status_code=400, detail="Неверно указана роль (client/mechanic/admin)")
+    client = crud.get_client_by_login(db, login=request.login)
+    if client and verify_password(request.password, client.password_hash):
+        user = client
+        user_id = client.id
+        role = "client"
 
-    if not user or not verify_password(request.password, user.password_hash):
+    if not user:
+        mechanic = crud.get_mechanic_by_login(db, login=request.login)
+        if mechanic and verify_password(request.password, mechanic.password_hash):
+            user = mechanic
+            user_id = mechanic.id
+            role = "mechanic"
+
+    if not user:
+        admin = crud.get_admin_by_login(db, login=request.login)
+        if admin and verify_password(request.password, admin.password_hash):
+            user = admin
+            user_id = admin.id
+            role = "admin"
+
+    if not user:
         raise HTTPException(
             status_code=401,
             detail="Неверный логин или пароль. Попробуйте снова."
         )
     
-    access_token = create_access_token(data={"sub": str(user_id), "role": request.role})
+    access_token = create_access_token(data={"sub": str(user_id), "role": role})
     
     return {"access_token": access_token, "token_type": "bearer"}
 
@@ -432,3 +437,31 @@ def get_discounted_clients(db: Session = Depends(get_db)):
         "total_discounted_clients": len(result),
         "clients": result
     }
+
+@app.get("/admin/callbacks", tags=["Админ"])
+def get_all_callbacks(db: Session = Depends(get_db)):
+    callbacks = db.query(Callback_Request).order_by(Callback_Request.created_at.desc()).all()
+    return [{
+        "id": c.id,
+        "client_name": c.client_name,
+        "phone": c.phone,
+        "status": c.status,
+        "created_at": c.created_at.isoformat() if c.created_at else None
+    } for c in callbacks]
+
+@app.put("/admin/callbacks/{callback_id}/status", tags=["Админ"])
+def update_callback_status(callback_id: int, status: str, db: Session = Depends(get_db)):
+    callback = db.query(Callback_Request).filter(Callback_Request.id == callback_id).first()
+    if not callback:
+        raise HTTPException(status_code=404, detail="Заявка не найдена")
+    
+    callback.status = status
+    db.commit()
+    db.refresh(callback)
+    
+    return {"message": "Статус обновлен", "status": callback.status}
+
+@app.get("/admin/callbacks/unread-count", tags=["Админ"])
+def get_unread_callbacks_count(db: Session = Depends(get_db)):
+    count = db.query(Callback_Request).filter(Callback_Request.status == "Ожидает обработки").count()
+    return {"count": count}
