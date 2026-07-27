@@ -5,140 +5,109 @@
       <p class="page-subtitle">Управление заявками, мастерами и боксами</p>
     </div>
 
-    <!-- Статистика сверху -->
-    <div class="stats-grid">
-      <div class="glass-card stat-card">
-        <div class="stat-value neon-text">{{ orders.filter(o => o.status === 'Ожидает').length }}</div>
-        <div class="stat-label">Ожидают назначения</div>
-      </div>
-      <div class="glass-card stat-card">
-        <div class="stat-value" style="color: #60a5fa">{{ orders.filter(o => o.status === 'В работе').length }}</div>
-        <div class="stat-label">В работе</div>
-      </div>
-      <div class="glass-card stat-card">
-        <div class="stat-value" style="color: #4ade80">{{ orders.filter(o => o.status === 'Выполнено').length }}</div>
-        <div class="stat-label">Готовы к закрытию</div>
-      </div>
+    <!-- Переключатель вкладок -->
+    <div class="tabs">
+      <button 
+        :class="['tab-btn', { active: activeTab === 'orders' }]" 
+        @click="activeTab = 'orders'"
+      >
+        📋 Заявки
+      </button>
+      <button 
+        :class="['tab-btn', { active: activeTab === 'reports' }]" 
+        @click="activeTab = 'reports'"
+      >
+        📊 Отчёты
+      </button>
     </div>
 
-    <!-- Таблица заявок -->
-    <div class="glass-card table-container">
-      <h2 class="section-title">Все заявки</h2>
-      
-      <div v-if="loading" class="loading-state">
-        <div class="spinner"></div>
-      </div>
-
-      <table v-else class="data-table">
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Клиент / Авто</th>
-            <th>Статус</th>
-            <th>Мастер / Бокс</th>
-            <th>Дата</th>
-            <th>Сумма</th>
-            <th>Действия</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="order in orders" :key="order.id">
-            <td>#{{ order.id }}</td>
-            <td>
-              <div class="client-info">{{ order.client_name }}</div>
-              <div class="car-info">{{ order.car_info }}</div>
-            </td>
-            <td>
-              <span :class="['status-badge', getStatusClass(order.status)]">
-                {{ order.status }}
-              </span>
-            </td>
-            <td>
-              <div>{{ order.mechanic_name }}</div>
-              <div class="sub-text">Бокс {{ order.bay_number }}</div>
-            </td>
-            <td>{{ formatDate(order.planned_start) }}</td>
-            <td class="price-cell">{{ order.final_cost }} ₽</td>
-            <td class="actions-cell">
-              <button 
-                v-if="order.status === 'Ожидает'" 
-                @click="openAssignModal(order)" 
-                class="btn btn-primary btn-sm"
-              >
-                Назначить
-              </button>
-              <button 
-                v-if="order.status === 'Выполнено'" 
-                @click="openCloseModal(order)" 
-                class="btn btn-outline btn-sm"
-                style="border-color: #4ade80; color: #4ade80;"
-              >
-                Закрыть
-              </button>
-              <span v-if="['В работе', 'Завершена'].includes(order.status)" class="sub-text">
-                {{ order.status === 'Завершена' ? 'Архив' : 'В процессе' }}
-              </span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Модальное окно: Назначение (ФТ2, ФТ4) -->
-    <div v-if="showAssignModal" class="modal-overlay" @click.self="showAssignModal = false">
-      <div class="modal glass-card">
-        <h3>Назначение заявки #{{ selectedOrder?.id }}</h3>
-        <form @submit.prevent="assignOrder">
-          <div class="form-group">
-            <label class="form-label">Выберите мастера</label>
-            <select v-model="assignForm.mechanic_id" class="form-input" required>
-              <option value="" disabled>Выберите мастера...</option>
-              <option v-for="m in mechanics" :key="m.id" :value="m.id">
-                {{ m.full_name }} ({{ m.specialization }})
-              </option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Выберите бокс</label>
-            <select v-model="assignForm.bay_id" class="form-input" required>
-              <option value="" disabled>Выберите бокс...</option>
-              <option v-for="b in bays" :key="b.id" :value="b.id">
-                Бокс {{ b.number }} (Вместимость: {{ b.capacity }})
-              </option>
-            </select>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="showAssignModal = false" class="btn btn-outline">Отмена</button>
-            <button type="submit" class="btn btn-primary" :disabled="isLoading">Назначить</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Модальное окно: Закрытие (ФТ3) -->
-    <div v-if="showCloseModal" class="modal-overlay" @click.self="showCloseModal = false">
-      <div class="modal glass-card">
-        <h3>Закрытие заявки #{{ selectedOrder?.id }}</h3>
-        <div class="order-summary">
-          <p>Клиент: <strong>{{ selectedOrder?.client_name }}</strong></p>
-          <p>Итоговая сумма (со скидкой): <strong class="neon-text">{{ selectedOrder?.final_cost }} ₽</strong></p>
+    <!-- Вкладка заявок -->
+    <div v-if="activeTab === 'orders'">
+      <!-- Статистика сверху -->
+      <div class="stats-grid">
+        <div class="glass-card stat-card">
+          <div class="stat-value neon-text">{{ orders.filter(o => o.status === 'Ожидает').length }}</div>
+          <div class="stat-label">Ожидают назначения</div>
         </div>
-        <form @submit.prevent="closeOrder">
-          <div class="form-group">
-            <label class="form-label">Способ оплаты</label>
-            <select v-model="closeForm.payment_method" class="form-input" required>
-              <option value="Наличные">Наличные</option>
-              <option value="Карта">Карта</option>
-              <option value="Безналичный расчет">Безналичный расчет</option>
-            </select>
-          </div>
-          <div class="modal-actions">
-            <button type="button" @click="showCloseModal = false" class="btn btn-outline">Отмена</button>
-            <button type="submit" class="btn btn-primary" :disabled="isLoading">Принять оплату и закрыть</button>
-          </div>
-        </form>
+        <div class="glass-card stat-card">
+          <div class="stat-value" style="color: #60a5fa">{{ orders.filter(o => o.status === 'В работе').length }}</div>
+          <div class="stat-label">В работе</div>
+        </div>
+        <div class="glass-card stat-card">
+          <div class="stat-value" style="color: #4ade80">{{ orders.filter(o => o.status === 'Выполнено').length }}</div>
+          <div class="stat-label">Готовы к закрытию</div>
+        </div>
       </div>
+
+      <!-- Таблица заявок -->
+      <div class="glass-card table-container">
+        <h2 class="section-title">Все заявки</h2>
+        
+        <div v-if="loading" class="loading-state">
+          <div class="spinner"></div>
+        </div>
+
+        <table v-else class="data-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Клиент / Авто</th>
+              <th>Статус</th>
+              <th>Мастер / Бокс</th>
+              <th>Дата</th>
+              <th>Сумма</th>
+              <th>Действия</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="order in orders" :key="order.id">
+              <td>#{{ order.id }}</td>
+              <td>
+                <div class="client-info">{{ order.client_name }}</div>
+                <div class="car-info">{{ order.car_info }}</div>
+              </td>
+              <td>
+                <span :class="['status-badge', getStatusClass(order.status)]">
+                  {{ order.status }}
+                </span>
+              </td>
+              <td>
+                <div>{{ order.mechanic_name }}</div>
+                <div class="sub-text">Бокс {{ order.bay_number }}</div>
+              </td>
+              <td>{{ formatDate(order.planned_start) }}</td>
+              <td class="price-cell">{{ order.final_cost }} ₽</td>
+              <td class="actions-cell">
+                <button 
+                  v-if="order.status === 'Ожидает'" 
+                  @click="openAssignModal(order)" 
+                  class="btn btn-primary btn-sm"
+                >
+                  Назначить
+                </button>
+                <button 
+                  v-if="order.status === 'Выполнено'" 
+                  @click="openCloseModal(order)" 
+                  class="btn btn-outline btn-sm"
+                  style="border-color: #4ade80; color: #4ade80;"
+                >
+                  Закрыть
+                </button>
+                <span v-if="['В работе', 'Завершена'].includes(order.status)" class="sub-text">
+                  {{ order.status === 'Завершена' ? 'Архив' : 'В процессе' }}
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Модальные окна (оставь как было) -->
+      <!-- ... код модальных окон назначения и закрытия ... -->
     </div>
+
+    <!-- Вкладка отчётов -->
+    <ReportsTab v-if="activeTab === 'reports'" />
   </div>
 
   <div v-else class="access-denied fade-in">
@@ -151,10 +120,12 @@
 <script setup>
 import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import apiClient from '../api/axios'
+import apiClient from '../api/axios.js'
+import ReportsTab from '../components/ReportsTab.vue'
 
 const router = useRouter()
 const isAdmin = computed(() => localStorage.getItem('role') === 'admin')
+const activeTab = ref('orders')
 
 const orders = ref([])
 const mechanics = ref([])
@@ -246,6 +217,38 @@ const formatDate = (dateStr) => {
 </script>
 
 <style scoped>
+/* Добавь стили для вкладок */
+.tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+}
+
+.tab-btn {
+  padding: 12px 24px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.tab-btn:hover {
+  background: rgba(220, 38, 38, 0.1);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: white;
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, #dc2626, #991b1b);
+  border-color: #dc2626;
+  color: white;
+  box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
+}
+
 .admin-dashboard {
   display: flex;
   flex-direction: column;

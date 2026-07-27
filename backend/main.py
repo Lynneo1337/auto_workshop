@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Header, HTTPException
 from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import and_, func
 from database import engine, Base, get_db
 import models
 from typing import List, Optional
@@ -33,7 +34,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-   allow_origins=["http://localhost:5173"],
+   allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
    allow_credentials=True,
    allow_methods=["*"],
    allow_headers=["*"],
@@ -367,3 +368,67 @@ def get_mechanic_orders(mechanic_id: int, db: Session = Depends(get_db)):
         })
     
     return result
+
+@app.get("/reports/mechanics-load", tags=["Отчеты"])
+def get_mechanics_load(
+    start_date: datetime,
+    end_date: datetime,
+    db: Session = Depends(get_db)
+):
+    """Отчет по загрузке мастеров за период"""
+    mechanics = db.query(Mechanic).all()
+    result = []
+    
+    for mechanic in mechanics:
+        orders_count = db.query(func.count(Order.id)).filter(
+            and_(
+                Order.mechanic_id == mechanic.id,
+                Order.status == 'Завершена',
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            )
+        ).scalar() or 0
+        
+        total_revenue = db.query(func.sum(Order.final_cost)).filter(
+            and_(
+                Order.mechanic_id == mechanic.id,
+                Order.status == 'Завершена',
+                Order.created_at >= start_date,
+                Order.created_at <= end_date
+            )
+        ).scalar() or 0
+        
+        result.append({
+            "mechanic_id": mechanic.id,
+            "full_name": mechanic.full_name,
+            "specialization": mechanic.specialization,
+            "orders_count": orders_count,
+            "total_revenue": float(total_revenue)
+        })
+    
+    return result
+
+@app.get("/reports/discounted-clients", tags=["Отчеты"])
+def get_discounted_clients(db: Session = Depends(get_db)):
+    """Отчет по клиентам со скидкой"""
+    clients = db.query(Client).filter(
+        and_(
+            Client.current_discount > 0,
+            Client.visit_count > 0
+        )
+    ).order_by(Client.current_discount.desc()).all()
+    
+    result = []
+    for client in clients:
+        result.append({
+            "id": client.id,
+            "full_name": client.full_name,
+            "phone": client.phone,
+            "visit_count": client.visit_count,
+            "current_discount": float(client.current_discount)
+        })
+    
+    return {
+        "total_discounted_clients": len(result),
+        "clients": result
+    }
