@@ -57,12 +57,9 @@
       <h2>Не нашли нужную услугу?</h2>
       <p>Свяжитесь с нами, и мы поможем решить вашу задачу</p>
       <div class="cta-buttons">
-        <button @click="$router.push('/')" class="btn btn-primary">
+        <button @click="$router.push('/booking')" class="btn btn-primary">
            Заказать звонок
         </button>
-        <router-link to="/register" class="btn btn-outline">
-          Создать аккаунт
-        </router-link>
       </div>
     </section>
   </div>

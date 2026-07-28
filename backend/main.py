@@ -277,16 +277,19 @@ def assign_order(order_id: int, assign_data: OrderAssignRequest, db: Session = D
     if not order:
         raise HTTPException(status_code=404, detail="Заявка не найдена")
     
-    if assign_data.auto_assign:
-        if not order.order_items:
-            raise HTTPException(status_code=400, detail="В заявке нет услуг для определения специализации")
-        
+    required_specialization = None
+    if order.order_items:
         service = db.query(Service).filter(Service.id == order.order_items[0].service_id).first()
-        specialization = service.req_specialization if service else None
+        if service:
+            required_specialization = service.req_specialization
+    
+    if assign_data.auto_assign:
+        if not required_specialization:
+            raise HTTPException(status_code=400, detail="Не удалось определить специализацию для услуги")
         
         available_mechanics = crud.get_available_mechanics(
             db, 
-            specialization=specialization or "",
+            specialization=required_specialization,
             start=order.planned_start,
             end=order.planned_end
         )
@@ -294,12 +297,24 @@ def assign_order(order_id: int, assign_data: OrderAssignRequest, db: Session = D
         if not available_mechanics:
             raise HTTPException(
                 status_code=400, 
-                detail=f"Нет свободных мастеров{' (' + specialization + ')' if specialization else ''} на это время"
+                detail=f"Нет свободных мастеров специализации '{required_specialization}' на это время"
             )
         
         order.mechanic_id = available_mechanics[0].id
     else:
         if assign_data.mechanic_id:
+            if not crud.is_mechanic_available(db, assign_data.mechanic_id, order.planned_start, order.planned_end):
+                raise HTTPException(status_code=400, detail="Выбранный мастер занят в это время")
+            
+            # ПРОВЕРКА СПЕЦИАЛИЗАЦИИ
+            if required_specialization:
+                mechanic = db.query(Mechanic).filter(Mechanic.id == assign_data.mechanic_id).first()
+                if mechanic and mechanic.specialization != required_specialization:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Мастер {mechanic.full_name} имеет специализацию '{mechanic.specialization}', но требуется '{required_specialization}'"
+                    )
+            
             order.mechanic_id = assign_data.mechanic_id
         else:
             raise HTTPException(status_code=400, detail="Не выбран мастер")
@@ -344,6 +359,17 @@ def mechanic_complete_order(
     
     if order.status != "В работе":
         raise HTTPException(status_code=400, detail=f"Нельзя завершить заказ со статусом '{order.status}'")
+    
+    # ПРОВЕРКА СПЕЦИАЛИЗАЦИИ
+    mechanic = db.query(Mechanic).filter(Mechanic.id == mechanic_id).first()
+    if mechanic and order.order_items:
+        for item in order.order_items:
+            service = db.query(Service).filter(Service.id == item.service_id).first()
+            if service and service.req_specialization and service.req_specialization != mechanic.specialization:
+                raise HTTPException(
+                    status_code=403, 
+                    detail=f"Ваша специализация '{mechanic.specialization}' не соответствует услуге '{service.name}' (требуется '{service.req_specialization}')"
+                )
     
     order.status = "Выполнено"
     db.commit()

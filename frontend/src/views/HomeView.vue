@@ -181,6 +181,18 @@ const submitCallback = async () => {
   display: flex;
   flex-direction: column;
   gap: 60px;
+  min-height: 100vh;
+  background-image: 
+    linear-gradient(
+      rgba(10, 10, 10, 0.85), 
+      rgba(10, 10, 10, 0.85)
+    ),
+    url('/images/bg.jpg');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-attachment: fixed;
+  padding: 40px 20px;
 }
 
 /* Hero секция */

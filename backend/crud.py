@@ -208,22 +208,27 @@ def complete_order_by_mechanic(db: Session, order_id: int, mechanic_id: int) -> 
     return order
 
 def close_order_by_admin(db: Session, order_id: int, close_data: OrderCloseRequest) -> Order:
+    """
+    Администратор закрывает заказ, принимает оплату и обновляет скидку клиента (ФТ3).
+    """
     order = db.query(Order).filter(Order.id == order_id).first()
     if not order:
         raise ValueError("Заказ не найден")
     if order.status not in ["Выполнено", "В работе"]:
-        raise ValueError(f"Нельзя закрыть заказ с текущим статусом: {order.status}")
-    
+        raise ValueError("Нельзя закрыть заказ с текущим статусом")
+        
     order.status = "Завершена"
     order.payment_method = close_data.payment_method
     
     client = db.query(Client).filter(Client.id == order.client_id).first()
     if client:
         client.visit_count += 1
+        
         rule = db.query(Discount_Rule).filter(
             Discount_Rule.min_visits <= client.visit_count,
             Discount_Rule.max_visits >= client.visit_count
         ).first()
+        
         if rule:
             client.current_discount = rule.discount_percent
             
@@ -300,3 +305,16 @@ def get_popular_services_report(db: Session, start: datetime, end: datetime, lim
             "total_revenue": float(row[2])
         } for row in result
     ]
+
+def is_mechanic_available(db: Session, mechanic_id: int, start: datetime, end: datetime) -> bool:
+    """Проверяет, свободен ли мастер в заданный временной интервал"""
+    overlapping_orders = db.query(func.count(Order.id)).filter(
+        and_(
+            Order.mechanic_id == mechanic_id,
+            Order.status.notin_(['Завершена', 'Отменена']),
+            Order.planned_start < end,
+            Order.planned_end > start
+        )
+    ).scalar()
+    
+    return overlapping_orders == 0

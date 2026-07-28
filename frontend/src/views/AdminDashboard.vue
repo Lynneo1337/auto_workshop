@@ -10,7 +10,7 @@
         :class="['tab-btn', { active: activeTab === 'orders' }]" 
         @click="activeTab = 'orders'"
       >
-        📋 Заявки
+         Заявки
       </button>
       <button 
         :class="['tab-btn', { active: activeTab === 'callbacks' }]" 
@@ -115,14 +115,23 @@
           </div>
           <form @submit.prevent="assignOrder">
             <div class="form-group">
-              <label class="form-label">Мастер</label>
-              <select v-model="assignForm.mechanic_id" class="form-input" required>
-                <option :value="null" disabled>Выберите мастера...</option>
-                <option v-for="m in mechanics" :key="m.id" :value="m.id">
-                  {{ m.full_name }} ({{ m.specialization }})
-                </option>
-              </select>
-            </div>
+  <label class="form-label">Мастер</label>
+  <select v-model="assignForm.mechanic_id" class="form-input" required>
+    <option :value="null" disabled>Выберите мастера...</option>
+    <option 
+      v-for="m in filteredMechanics" 
+      :key="m.id" 
+      :value="m.id"
+      :disabled="!m.isSuitable"
+    >
+      {{ m.full_name }} ({{ m.specialization }})
+      <template v-if="!m.isSuitable"> ⚠️ Не подходит</template>
+    </option>
+  </select>
+  <p v-if="requiredSpecialization" class="input-hint">
+    Требуемая специализация: <strong>{{ requiredSpecialization }}</strong>
+  </p>
+</div>
             <div class="form-group">
               <label class="form-label">Бокс</label>
               <select v-model="assignForm.bay_id" class="form-input" required>
@@ -225,16 +234,20 @@ onMounted(async () => {
   await loadUnreadCallbacksCount()
 })
 
+const services = ref([])
+
 const loadData = async () => {
   try {
-    const [ordersRes, mechRes, baysRes] = await Promise.all([
+    const [ordersRes, mechRes, baysRes, servicesRes] = await Promise.all([
       apiClient.get('/admin/orders'),
       apiClient.get('/mechanics/'),
-      apiClient.get('/bays/')
+      apiClient.get('/bays/'),
+      apiClient.get('/services/')
     ])
     orders.value = ordersRes.data
     mechanics.value = mechRes.data
     bays.value = baysRes.data
+    services.value = servicesRes.data
   } catch (error) {
     console.error('Ошибка загрузки данных админа:', error)
   } finally {
@@ -309,6 +322,20 @@ const formatDate = (dateStr) => {
     minute: '2-digit' 
   })
 }
+
+const requiredSpecialization = computed(() => {
+  if (!selectedOrder.value || !selectedOrder.value.services) return null
+  const firstService = selectedOrder.value.services[0]
+  const service = services.value.find(s => s.name === firstService.name)
+  return service?.req_specialization || null
+})
+
+const filteredMechanics = computed(() => {
+  return mechanics.value.map(m => ({
+    ...m,
+    isSuitable: !requiredSpecialization.value || m.specialization === requiredSpecialization.value
+  }))
+})
 </script>
 
 <style scoped>
@@ -336,7 +363,6 @@ const formatDate = (dateStr) => {
 .tabs {
   display: flex;
   gap: 10px;
-  margin-bottom: 30px;
 }
 
 .tab-btn {
@@ -368,6 +394,7 @@ const formatDate = (dateStr) => {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 20px;
+  margin-bottom: 30px;
 }
 
 .stat-card {
@@ -683,12 +710,8 @@ const formatDate = (dateStr) => {
 }
 
 @keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
 }
 
 @media (max-width: 768px) {
