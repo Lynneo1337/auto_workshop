@@ -56,22 +56,37 @@
       </div>
 
       <div v-else class="orders-list">
-        <div v-for="order in orders" :key="order.id" class="glass-card order-card">
-          <div class="order-header">
-            <span class="order-id">Заказ #{{ order.id }}</span>
-            <span :class="['status-badge', getStatusClass(order.status)]">
-              {{ order.status }}
-            </span>
-          </div>
-          <div class="order-details">
-            <div class="order-info">
-              <p><strong>Автомобиль:</strong> {{ getCarName(order.car_id) }}</p>
-              <p><strong>Дата:</strong> {{ formatDate(order.planned_start) }}</p>
-              <p><strong>Сумма:</strong> {{ order.final_cost }} ₽</p>
-            </div>
-          </div>
-        </div>
+  <div v-for="order in orders" :key="order.id" class="glass-card order-card">
+    <div class="order-header">
+      <span class="order-id">Заказ #{{ order.id }}</span>
+      <span :class="['status-badge', getStatusClass(order.status)]">
+        {{ order.status }}
+      </span>
+    </div>
+    <div class="order-details">
+      <div class="order-info">
+        <p><strong>Автомобиль:</strong> {{ order.car_info }}</p>
+        <p><strong>Дата:</strong> {{ formatDate(order.planned_start) }}</p>
+        <p><strong>Мастер:</strong> {{ order.mechanic_name }}</p>
+        <p v-if="order.services.length > 0">
+          <strong>Услуги:</strong>
+          <ul class="services-list">
+            <li v-for="(service, idx) in order.services" :key="idx">
+              {{ service.name }} (x{{ service.quantity }}) - {{ service.price }} ₽
+            </li>
+          </ul>
+        </p>
+        <p><strong>Сумма:</strong> {{ order.final_cost }} ₽</p>
+        <p v-if="order.discount_amount > 0">
+          <strong>Скидка:</strong> -{{ order.discount_amount }} ₽
+        </p>
+        <p v-if="order.payment_method">
+          <strong>Оплата:</strong> {{ order.payment_method }}
+        </p>
       </div>
+    </div>
+  </div>
+</div>
     </section>
 
     <!-- Модальное окно добавления авто -->
@@ -156,7 +171,8 @@ const loadCars = async () => {
 
 const loadOrders = async () => {
   try {
-    orders.value = []
+    const response = await apiClient.get(`/clients/${profile.value.id}/orders/`)
+    orders.value = response.data
   } catch (error) {
     console.error('Ошибка загрузки заказов:', error)
   }
@@ -215,6 +231,56 @@ const formatDate = (dateStr) => {
 </script>
 
 <style scoped>
+
+.services-list {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0 0;
+}
+
+.services-list li {
+  padding: 5px 0;
+  color: rgba(255, 255, 255, 0.7);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.services-list li:last-child {
+  border-bottom: none;
+}
+
+.order-card {
+  margin-bottom: 15px;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.order-id {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.order-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.order-info p {
+  margin: 5px 0;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.order-info strong {
+  color: white;
+}
+
 .dashboard {
   display: flex;
   flex-direction: column;

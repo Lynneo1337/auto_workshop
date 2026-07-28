@@ -32,16 +32,22 @@
           </select>
         </div>
 
-        <div class="grid-2">
-          <div class="form-group">
-            <label class="form-label">Дата и время начала</label>
-            <input v-model="form.planned_start" type="datetime-local" class="form-input" required />
-          </div>
-          <div class="form-group">
-            <label class="form-label">Длительность (часов)</label>
-            <input v-model.number="form.duration" type="number" min="1" max="8" class="form-input" required />
-          </div>
-        </div>
+<div class="grid-2">
+  <div class="form-group">
+    <label class="form-label">Дата и время начала</label>
+    <input 
+      v-model="form.planned_start" 
+      type="datetime-local" 
+      class="form-input" 
+      :min="minDateTime"
+      required 
+    />
+  </div>
+  <div class="form-group">
+    <label class="form-label">Длительность (часов)</label>
+    <input v-model.number="form.duration" type="number" min="1" max="8" class="form-input" required />
+  </div>
+</div>
 
         <button type="submit" class="btn btn-primary btn-full" :disabled="isLoading">
           {{ isLoading ? 'Оформление...' : 'Подтвердить запись' }}
@@ -55,9 +61,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import apiClient from '../api/axios'
+
+const minDateTime = computed(() => {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, '0')
+  const day = String(now.getDate()).padStart(2, '0')
+  const hours = String(now.getHours()).padStart(2, '0')
+  const minutes = String(now.getMinutes()).padStart(2, '0')
+  return `${year}-${month}-${day}T${hours}:${minutes}`
+})
 
 const router = useRouter()
 const cars = ref([])
@@ -101,6 +117,14 @@ const submitBooking = async () => {
   success.value = false
   
   const startDate = new Date(form.planned_start)
+  const now = new Date()
+  
+  if (startDate < now) {
+    error.value = 'Нельзя выбрать прошедшую дату и время'
+    isLoading.value = false
+    return
+  }
+  
   const endDate = new Date(startDate.getTime() + form.duration * 60 * 60 * 1000)
   
   const payload = {

@@ -280,7 +280,7 @@ def assign_order(order_id: int, assign_data: OrderAssignRequest, db: Session = D
     if assign_data.auto_assign:
         if not order.order_items:
             raise HTTPException(status_code=400, detail="В заявке нет услуг для определения специализации")
-
+        
         service = db.query(Service).filter(Service.id == order.order_items[0].service_id).first()
         specialization = service.req_specialization if service else None
         
@@ -298,6 +298,11 @@ def assign_order(order_id: int, assign_data: OrderAssignRequest, db: Session = D
             )
         
         order.mechanic_id = available_mechanics[0].id
+    else:
+        if assign_data.mechanic_id:
+            order.mechanic_id = assign_data.mechanic_id
+        else:
+            raise HTTPException(status_code=400, detail="Не выбран мастер")
     
     if assign_data.bay_id:
         if not crud.is_bay_available(db, assign_data.bay_id, order.planned_start, order.planned_end):
@@ -465,3 +470,37 @@ def update_callback_status(callback_id: int, status: str, db: Session = Depends(
 def get_unread_callbacks_count(db: Session = Depends(get_db)):
     count = db.query(Callback_Request).filter(Callback_Request.status == "Ожидает обработки").count()
     return {"count": count}
+
+@app.get("/clients/{client_id}/orders", tags=["Клиенты"])
+def get_client_orders(client_id: int, db: Session = Depends(get_db)):
+    orders = db.query(Order).options(
+        joinedload(Order.car),
+        joinedload(Order.mechanic),
+        joinedload(Order.order_items).joinedload(Order_Item.service)
+    ).filter(Order.client_id == client_id).order_by(Order.created_at.desc()).all()
+    
+    result = []
+    for order in orders:
+        services = []
+        for item in order.order_items:
+            services.append({
+                "name": item.service.name if item.service else "Неизвестно",
+                "quantity": item.quantity,
+                "price": float(item.fact_price) if item.fact_price else 0
+            })
+        
+        result.append({
+            "id": order.id,
+            "status": order.status,
+            "planned_start": order.planned_start.isoformat() if order.planned_start else None,
+            "planned_end": order.planned_end.isoformat() if order.planned_end else None,
+            "total_cost": float(order.total_cost) if order.total_cost else 0,
+            "discount_amount": float(order.discount_amount) if order.discount_amount else 0,
+            "final_cost": float(order.final_cost) if order.final_cost else 0,
+            "payment_method": order.payment_method,
+            "car_info": f"{order.car.brand_model} ({order.car.license_plate})" if order.car else "Неизвестно",
+            "mechanic_name": order.mechanic.full_name if order.mechanic else "Не назначен",
+            "services": services
+        })
+    
+    return result
