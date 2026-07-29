@@ -68,14 +68,14 @@
         <p><strong>Автомобиль:</strong> {{ order.car_info }}</p>
         <p><strong>Дата:</strong> {{ formatDate(order.planned_start) }}</p>
         <p><strong>Мастер:</strong> {{ order.mechanic_name }}</p>
-        <p v-if="order.services.length > 0">
-          <strong>Услуги:</strong>
-          <ul class="services-list">
-            <li v-for="(service, idx) in order.services" :key="idx">
-              {{ service.name }} (x{{ service.quantity }}) - {{ service.price }} ₽
-            </li>
-          </ul>
-        </p>
+<p v-if="order.services.length > 0">
+  <strong>Услуги:</strong>
+  <ul class="services-list">
+    <li v-for="(service, idx) in order.services" :key="idx">
+      {{ service.name }} (x{{ service.quantity }}) - {{ service.price }} ₽
+    </li>
+  </ul>
+</p>
         <p><strong>Сумма:</strong> {{ order.final_cost }} ₽</p>
         <p v-if="order.discount_amount > 0">
           <strong>Скидка:</strong> -{{ order.discount_amount }} ₽

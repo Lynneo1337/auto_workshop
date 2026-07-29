@@ -251,17 +251,39 @@ def get_all_orders_enriched(db: Session = Depends(get_db)):
     
     result = []
     for order in orders:
+        services = []
+        for item in order.order_items:
+            if item.service:
+                services.append({
+                    "name": item.service.name,
+                    "quantity": item.quantity,
+                    "price": float(item.fact_price) if item.fact_price else 0,
+                    "specialization": item.service.req_specialization or "Универсал"
+                })
+        
         result.append({
             "id": order.id,
             "status": order.status,
-            "planned_start": order.planned_start.isoformat() if order.planned_start else None,
-            "planned_end": order.planned_end.isoformat() if order.planned_end else None,
-            "total_cost": float(order.total_cost) if order.total_cost else 0,
-            "final_cost": float(order.final_cost) if order.final_cost else 0,
             "client_name": order.client.full_name if order.client else "Неизвестно",
             "car_info": f"{order.car.brand_model} ({order.car.license_plate})" if order.car else "Неизвестно",
             "mechanic_name": order.mechanic.full_name if order.mechanic else "Не назначен",
-            "bay_number": order.bay.number if order.bay else "Не назначен"
+            "bay_number": order.bay.number if order.bay else "Не назначен",
+            "planned_start": order.planned_start.isoformat() if order.planned_start else None,
+            "planned_end": order.planned_end.isoformat() if order.planned_end else None,
+            "total_cost": float(order.total_cost) if order.total_cost else 0,
+            "discount_amount": float(order.discount_amount) if order.discount_amount else 0,
+            "final_cost": float(order.final_cost) if order.final_cost else 0,
+            "payment_method": order.payment_method,
+            "services": [
+    {
+        "name": item.service.name if item.service else "Неизвестно",
+        "quantity": item.quantity,
+        "price": float(item.fact_price) if item.fact_price else 0,
+        "specialization": item.service.req_specialization if item.service else "Универсал"
+    }
+    for item in order.order_items
+],
+            "created_at": order.created_at.isoformat() if order.created_at else None
         })
     
     return result
@@ -306,7 +328,6 @@ def assign_order(order_id: int, assign_data: OrderAssignRequest, db: Session = D
             if not crud.is_mechanic_available(db, assign_data.mechanic_id, order.planned_start, order.planned_end):
                 raise HTTPException(status_code=400, detail="Выбранный мастер занят в это время")
             
-            # ПРОВЕРКА СПЕЦИАЛИЗАЦИИ
             if required_specialization:
                 mechanic = db.query(Mechanic).filter(Mechanic.id == assign_data.mechanic_id).first()
                 if mechanic and mechanic.specialization != required_specialization:
@@ -530,3 +551,68 @@ def get_client_orders(client_id: int, db: Session = Depends(get_db)):
         })
     
     return result
+
+
+@app.post("/admin/orders/{order_id}/split", tags=["Админ"])
+def split_order(order_id: int, db: Session = Depends(get_db)):
+    original_order = db.query(Order).filter(Order.id == order_id).first()
+    if not original_order:
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+    
+    if original_order.status != "Ожидает":
+        raise HTTPException(status_code=400, detail="Можно разделить только ожидающие заказы")
+    
+    services_by_spec = {}
+    for item in original_order.order_items:
+        service = db.query(Service).filter(Service.id == item.service_id).first()
+        if service:
+            spec = service.req_specialization or "Универсал"
+            if spec not in services_by_spec:
+                services_by_spec[spec] = []
+            services_by_spec[spec].append(item)
+    
+    if len(services_by_spec) <= 1:
+        raise HTTPException(status_code=400, detail="Заказ не требует разделения (все услуги одной специализации)")
+    
+    original_order.status = "Разделен"
+    
+    sub_orders = []
+    for spec, items in services_by_spec.items():
+        total_cost = sum(item.fact_price * item.quantity for item in items)
+        
+        sub_order = Order(
+            client_id=original_order.client_id,
+            car_id=original_order.car_id,
+            status="Ожидает",
+            planned_start=original_order.planned_start,
+            planned_end=original_order.planned_end,
+            total_cost=total_cost,
+            final_cost=total_cost,
+            created_at=datetime.now()
+        )
+        db.add(sub_order)
+        db.flush()
+        
+        for item in items:
+            sub_item = Order_Item(
+                order_id=sub_order.id,
+                service_id=item.service_id,
+                quantity=item.quantity,
+                fact_price=item.fact_price
+            )
+            db.add(sub_item)
+        
+        sub_orders.append({
+            "id": sub_order.id,
+            "specialization": spec,
+            "services_count": len(items),
+            "total_cost": total_cost
+        })
+    
+    db.commit()
+    
+    return {
+        "message": f"Заказ #{original_order.id} разделен на {len(sub_orders)} подзаказа",
+        "original_order_id": original_order.id,
+        "sub_orders": sub_orders
+    }

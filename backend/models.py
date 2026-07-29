@@ -65,7 +65,7 @@ class Service(Base):
     name = Column(String, comment="Название услуги (ФТ6)")
     price = Column(Numeric, comment="Фиксированная цена")
     req_specialization = Column(String, comment="Требуемый профиль мастера")
-    
+    duration_hours = Column(Integer, default=1)
     order_items = relationship("Order_Item", back_populates="service")
 
 class Discount_Rule(Base):

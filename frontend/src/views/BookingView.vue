@@ -22,15 +22,28 @@
           </select>
         </div>
 
-        <div class="form-group">
-          <label class="form-label">Услуга</label>
-          <select v-model="form.service_id" class="form-input" required>
-            <option value="" disabled>Выберите услугу...</option>
-            <option v-for="service in services" :key="service.id" :value="service.id">
-              {{ service.name }} - {{ service.price }} ₽
-            </option>
-          </select>
-        </div>
+<div class="form-group">
+  <label class="form-label">Услуги</label>
+  <div v-for="(service, index) in selectedServices" :key="index" class="service-row">
+    <select v-model="service.service_id" class="form-input service-select" required>
+      <option value="" disabled>Выберите услугу...</option>
+      <option v-for="s in services" :key="s.id" :value="s.id">
+        {{ s.name }} - {{ s.price }} ₽
+      </option>
+    </select>
+    <button 
+      v-if="selectedServices.length > 1" 
+      type="button" 
+      @click="removeService(index)" 
+      class="btn-remove"
+    >
+      ✕
+    </button>
+  </div>
+  <button type="button" @click="addService" class="btn btn-outline btn-sm" style="margin-top: 10px;">
+    + Добавить услугу
+  </button>
+</div>
 
 <div class="grid-2">
   <div class="form-group">
@@ -44,8 +57,15 @@
     />
   </div>
   <div class="form-group">
-    <label class="form-label">Длительность (часов)</label>
-    <input v-model.number="form.duration" type="number" min="1" max="8" class="form-input" required />
+    <label class="form-label">Общая длительность (часов)</label>
+    <input 
+      :value="totalDuration" 
+      type="text" 
+      class="form-input" 
+      readonly
+      style="background: rgba(255, 255, 255, 0.05); cursor: not-allowed;"
+    />
+    <p class="input-hint">Рассчитано автоматически на основе выбранных услуг</p>
   </div>
 </div>
 
@@ -75,19 +95,25 @@ const minDateTime = computed(() => {
   return `${year}-${month}-${day}T${hours}:${minutes}`
 })
 
+const totalDuration = computed(() => {
+  let total = 0
+  selectedServices.value.forEach(s => {
+    if (s.service_id) {
+      const service = services.value.find(srv => srv.id === parseInt(s.service_id))
+      if (service) {
+        total += service.duration_hours || 1
+      }
+    }
+  })
+  return total || 1 // Минимум 1 час
+})
+
 const router = useRouter()
 const cars = ref([])
 const services = ref([])
 const isLoading = ref(false)
 const error = ref('')
 const success = ref(false)
-
-const form = reactive({
-  car_id: '',
-  service_id: '',
-  planned_start: '',
-  duration: 2
-})
 
 onMounted(async () => {
   if (!localStorage.getItem('token')) {
@@ -106,10 +132,31 @@ onMounted(async () => {
     
     cars.value = carsRes.data
     services.value = servicesRes.data
+    
+    console.log('ID клиента:', clientId)
+    console.log('Автомобили:', cars.value)
+    console.log('Услуги:', services.value)
   } catch (err) {
+    console.error('Ошибка загрузки данных:', err)
     error.value = 'Ошибка загрузки данных'
   }
 })
+
+const form = reactive({
+  car_id: '',
+  planned_start: '',
+  duration: 2
+})
+
+const selectedServices = ref([{ service_id: '', quantity: 1 }])
+
+const addService = () => {
+  selectedServices.value.push({ service_id: '', quantity: 1 })
+}
+
+const removeService = (index) => {
+  selectedServices.value.splice(index, 1)
+}
 
 const submitBooking = async () => {
   isLoading.value = true
@@ -125,14 +172,27 @@ const submitBooking = async () => {
     return
   }
   
-  const endDate = new Date(startDate.getTime() + form.duration * 60 * 60 * 1000)
+const endDate = new Date(startDate.getTime() + totalDuration.value * 60 * 60 * 1000)
+  
+  const items = selectedServices.value
+    .filter(s => s.service_id)
+    .map(s => ({
+      service_id: parseInt(s.service_id),
+      quantity: s.quantity
+    }))
+  
+  if (items.length === 0) {
+    error.value = 'Выберите хотя бы одну услугу'
+    isLoading.value = false
+    return
+  }
   
   const payload = {
     client_id: 0, 
     car_id: parseInt(form.car_id),
     planned_start: startDate.toISOString(),
     planned_end: endDate.toISOString(),
-    items: [{ service_id: parseInt(form.service_id), quantity: 1 }]
+    items: items
   }
   
   try {
@@ -150,6 +210,36 @@ const submitBooking = async () => {
 </script>
 
 <style scoped>
+
+.service-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.service-select {
+  flex: 1;
+}
+
+.btn-remove {
+  background: rgba(239, 68, 68, 0.2);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-remove:hover {
+  background: rgba(239, 68, 68, 0.4);
+  transform: scale(1.05);
+}
+
 .booking-page {
   max-width: 800px;
   margin: 0 auto;

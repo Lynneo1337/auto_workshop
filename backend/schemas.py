@@ -53,11 +53,21 @@ class ServiceBase(BaseModel):
     price: Decimal = Field(..., gt=0, description="Цена услуги")
     req_specialization: Optional[str] = Field(None, description="Требуемый профиль мастера")
 
-class ServiceCreate(ServiceBase):
-    pass
+class ServiceCreate(BaseModel):
+    name: str
+    price: float
+    req_specialization: Optional[str] = None
+    duration_hours: int = 1
 
-class ServiceResponse(ServiceBase):
+class ServiceResponse(BaseModel):
     id: int
+    name: str
+    price: float
+    req_specialization: Optional[str]
+    duration_hours: int
+    
+    class Config:
+        from_attributes = True
 
     class Config:
         from_attributes = True

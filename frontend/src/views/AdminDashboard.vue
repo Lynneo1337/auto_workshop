@@ -51,17 +51,18 @@
         </div>
 
         <table v-else class="data-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Клиент / Авто</th>
-              <th>Статус</th>
-              <th>Мастер / Бокс</th>
-              <th>Дата</th>
-              <th>Сумма</th>
-              <th>Действия</th>
-            </tr>
-          </thead>
+<thead>
+  <tr>
+    <th>ID</th>
+    <th>Клиент / Авто</th>
+    <th>Услуги</th>
+    <th>Статус</th>
+    <th>Мастер / Бокс</th>
+    <th>Время</th>
+    <th>Сумма</th>
+    <th>Действия</th>
+  </tr>
+</thead>
           <tbody>
             <tr v-for="order in orders" :key="order.id">
               <td>#{{ order.id }}</td>
@@ -69,37 +70,72 @@
                 <div class="client-info">{{ order.client_name }}</div>
                 <div class="car-info">{{ order.car_info }}</div>
               </td>
+<td class="services-cell">
+  <div v-if="order.services && order.services.length > 0" class="services-list-compact">
+    <div v-for="(service, idx) in order.services" :key="idx" class="service-item">
+      <div class="service-info">
+        <span class="service-name">{{ service.name }}</span>
+        <span class="service-qty">x{{ service.quantity }}</span>
+      </div>
+      <span 
+        v-if="service.specialization" 
+        class="service-spec"
+        :class="getSpecClass(service.specialization)"
+      >
+        {{ service.specialization }}
+      </span>
+    </div>
+  </div>
+  <span v-else class="sub-text">Нет услуг</span>
+</td>
               <td>
                 <span :class="['status-badge', getStatusClass(order.status)]">
                   {{ order.status }}
                 </span>
               </td>
-              <td>
-                <div>{{ order.mechanic_name }}</div>
-                <div class="sub-text">Бокс {{ order.bay_number }}</div>
-              </td>
-              <td>{{ formatDate(order.planned_start) }}</td>
-              <td class="price-cell">{{ order.final_cost }} ₽</td>
-              <td class="actions-cell">
-                <button 
-                  v-if="order.status === 'Ожидает'" 
-                  @click="openAssignModal(order)" 
-                  class="btn btn-primary btn-sm"
-                >
-                  Назначить
-                </button>
-                <button 
-                  v-if="order.status === 'Выполнено'" 
-                  @click="openCloseModal(order)" 
-                  class="btn btn-outline btn-sm"
-                  style="border-color: #4ade80; color: #4ade80;"
-                >
-                  Закрыть
-                </button>
-                <span v-if="['В работе', 'Завершена'].includes(order.status)" class="sub-text">
-                  {{ order.status === 'Завершена' ? 'Архив' : 'В процессе' }}
-                </span>
-              </td>
+<td>
+  <div>{{ order.mechanic_name }}</div>
+  <div class="sub-text">Бокс {{ order.bay_number }}</div>
+  <div v-if="order.status === 'Разделен'" class="sub-text" style="color: #facc15;">
+    Разделен на подзаказы
+  </div>
+</td>
+<td class="period-cell">
+  <div>{{ formatDate(order.planned_start) }}</div>
+  <div v-if="order.planned_end" class="sub-text">
+    до {{ formatDate(order.planned_end) }}
+  </div>
+  <div v-else class="sub-text">—</div>
+</td>
+<td class="price-cell">{{ order.final_cost }} ₽</td>
+<td class="actions-cell">
+  <button 
+    v-if="order.status === 'Ожидает'" 
+    @click="openAssignModal(order)" 
+    class="btn btn-primary btn-sm"
+  >
+    Назначить
+  </button>
+<button 
+  v-if="order.status === 'Ожидает' && order.services && order.services.length > 1" 
+  @click="splitOrder(order.id)" 
+  class="btn btn-outline btn-sm"
+  style="border-color: #facc15; color: #facc15; margin-top: 5px;"
+>
+  Разделить
+</button>
+  <button 
+    v-if="order.status === 'Выполнено'" 
+    @click="openCloseModal(order)" 
+    class="btn btn-outline btn-sm"
+    style="border-color: #4ade80; color: #4ade80;"
+  >
+    Закрыть
+  </button>
+  <span v-if="['В работе', 'Завершена', 'Разделен'].includes(order.status)" class="sub-text">
+    {{ getStatusLabel(order.status) }}
+  </span>
+</td>
             </tr>
           </tbody>
         </table>
@@ -154,11 +190,19 @@
       <div v-if="showCloseModal" class="modal-overlay" @click.self="showCloseModal = false">
         <div class="modal glass-card">
           <h3>Закрытие заявки #{{ selectedOrder?.id }}</h3>
-          <div class="order-summary">
-            <p>Клиент: <strong>{{ selectedOrder?.client_name }}</strong></p>
-            <p>Авто: <strong>{{ selectedOrder?.car_info }}</strong></p>
-            <p>Итоговая сумма: <strong class="neon-text">{{ selectedOrder?.final_cost }} ₽</strong></p>
-          </div>
+<div class="order-summary">
+  <p>Клиент: <strong>{{ selectedOrder?.client_name }}</strong></p>
+  <p>Авто: <strong>{{ selectedOrder?.car_info }}</strong></p>
+  <p>Дата: <strong>{{ formatDate(selectedOrder?.planned_start) }}</strong></p>
+  <div v-if="selectedOrder?.services && selectedOrder.services.length > 0" class="services-list">
+    <strong>Услуги:</strong>
+    <ul>
+      <li v-for="(service, idx) in selectedOrder.services" :key="idx">
+        {{ service.name }} (x{{ service.quantity }})
+      </li>
+    </ul>
+  </div>
+</div>
           <form @submit.prevent="closeOrder">
             <div class="form-group">
               <label class="form-label">Способ оплаты</label>
@@ -218,6 +262,31 @@ const assignForm = ref({ mechanic_id: null, bay_id: null })
 const closeForm = ref({ payment_method: 'Наличные' })
 
 const unreadCallbacksCount = ref(0)
+
+
+const splitOrder = async (orderId) => {
+  if (!confirm('Разделить заказ на несколько подзаказов по специализациям?')) return
+  
+  try {
+    const response = await apiClient.post(`/admin/orders/${orderId}/split`)
+    alert(response.data.message)
+    await loadData()
+  } catch (error) {
+    const errorMsg = error.response?.data?.detail || error.message
+    alert('Ошибка разделения: ' + errorMsg)
+  }
+}
+
+const getStatusLabel = (status) => {
+  const map = {
+    'Ожидает': 'Ожидает назначения',
+    'В работе': 'В процессе',
+    'Выполнено': 'Готов к закрытию',
+    'Завершена': 'Архив',
+    'Разделен': 'Разделен на подзаказы'
+  }
+  return map[status] || status
+}
 
 const loadUnreadCallbacksCount = async () => {
   try {
@@ -308,9 +377,21 @@ const getStatusClass = (status) => {
     'Ожидает': 'status-pending',
     'В работе': 'status-progress',
     'Выполнено': 'status-done',
-    'Завершена': 'status-cancelled'
+    'Завершена': 'status-cancelled',
+    'Разделен': 'status-pending' // Используем тот же стиль, что и "Ожидает"
   }
   return map[status] || 'status-pending'
+}
+
+const getSpecClass = (spec) => {
+  const map = {
+    'Электрик': 'spec-electric',
+    'Ходовик': 'spec-suspension',
+    'Механик': 'spec-mechanic',
+    'Диагност': 'spec-diagnostic',
+    'Универсал': 'spec-universal'
+  }
+  return map[spec] || 'spec-default'
 }
 
 const formatDate = (dateStr) => {
@@ -339,6 +420,118 @@ const filteredMechanics = computed(() => {
 </script>
 
 <style scoped>
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border-left: 2px solid rgba(220, 38, 38, 0.3);
+}
+
+.service-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.service-name {
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.service-qty {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.service-spec {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.spec-electric {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.spec-suspension {
+  background: rgba(168, 85, 247, 0.2);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.spec-mechanic {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.spec-diagnostic {
+  background: rgba(234, 179, 8, 0.2);
+  color: #facc15;
+  border: 1px solid rgba(234, 179, 8, 0.3);
+}
+
+.spec-universal {
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.spec-default {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.services-cell {
+  max-width: 250px;
+}
+
+.services-list-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.service-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 6px;
+  border-left: 2px solid rgba(220, 38, 38, 0.3);
+}
+
+.service-name {
+  color: rgba(255, 255, 255, 0.85);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.service-qty {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.75rem;
+  margin-left: 8px;
+  flex-shrink: 0;
+}
 .admin-dashboard {
   display: flex;
   flex-direction: column;
