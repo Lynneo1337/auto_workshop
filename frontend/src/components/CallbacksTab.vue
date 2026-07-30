@@ -26,7 +26,7 @@
         <div class="callback-header">
           <div class="callback-info">
             <h3 class="callback-name">{{ callback.client_name }}</h3>
-            <p class="callback-phone">📱 {{ callback.phone }}</p>
+            <p class="callback-phone"> {{ callback.phone }}</p>
           </div>
           <span :class="['status-badge', callback.status === 'Ожидает обработки' ? 'status-pending' : 'status-done']">
             {{ callback.status }}

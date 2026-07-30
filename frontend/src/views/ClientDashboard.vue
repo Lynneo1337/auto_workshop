@@ -49,8 +49,9 @@
 
     <!-- История заказов -->
     <section class="section">
-      <h2 class="section-title">📋 История заказов</h2>
-
+<div class="section-header">
+      <h2 class="section-title"> История заказов </h2>
+</div>
       <div v-if="orders.length === 0" class="empty-state glass-card">
         <p>У вас пока нет заказов</p>
       </div>
@@ -232,6 +233,12 @@ const formatDate = (dateStr) => {
 
 <style scoped>
 
+.custom-icon {
+  width: 35px;
+  height: 35px;
+  vertical-align: middle;
+}
+
 .services-list {
   list-style: none;
   padding: 0;
@@ -362,6 +369,7 @@ const formatDate = (dateStr) => {
   align-items: center;
   margin-bottom: 15px;
 }
+
 
 .car-name {
   font-size: 1.3rem;

@@ -20,17 +20,17 @@
       </div>
       <div class="hero-features">
         <div class="feature-card glass-card">
-          <div class="feature-icon">👨‍🔧</div>
+          <img src="/icons/icons8-рабочий-с-бородой-94.png" alt="Мастер" class="custom-icon" />
           <h3>5 мастеров</h3>
           <p>Различные профили специализации</p>
         </div>
         <div class="feature-card glass-card">
-          <div class="feature-icon">🏢</div>
+          <img src="/icons/icons8-мастерская-94.png" alt="Мастер" class="custom-icon" />
           <h3>2 бокса</h3>
           <p>Вместимость до 4 автомобилей</p>
         </div>
         <div class="feature-card glass-card">
-          <div class="feature-icon">💰</div>
+          <img src="/icons/icons8-получить-скидку-94.png" alt="Мастер" class="custom-icon" />
           <h3>Скидки</h3>
           <p>Система лояльности для постоянных клиентов</p>
         </div>
@@ -62,21 +62,21 @@
         <h2 class="section-title">Контакты</h2>
         <div class="contacts-grid">
           <div class="contact-item">
-            <div class="contact-icon">📞</div>
+            <img src="/icons/icons8-телефон-94.png" alt="Телефон" class="contact-icon" />
             <div>
               <h4>Телефон</h4>
               <p class="contact-value">+7 (999) 123-45-67</p>
             </div>
           </div>
           <div class="contact-item">
-            <div class="contact-icon">📍</div>
+            <img src="/icons/icons8-геозона-94.png" alt="Адрес" class="contact-icon" />
             <div>
               <h4>Адрес</h4>
               <p class="contact-value">г. Москва, ул. Примерная, 123</p>
             </div>
           </div>
           <div class="contact-item">
-            <div class="contact-icon">🕐</div>
+            <img src="/icons/icons8-часы-94.png" alt="Режим работы" class="contact-icon" />
             <div>
               <h4>Режим работы</h4>
               <p class="contact-value">Пн-Пт: 9:00 - 20:00<br/>Сб-Вс: 10:00 - 18:00</p>
@@ -87,9 +87,9 @@
         <!-- Кнопка обратного звонка -->
         <div class="callback-section">
           <p>Нужна консультация?</p>
-          <button @click="showCallbackModal = true" class="btn btn-primary">
-            📞 Заказать обратный звонок
-          </button>
+<button @click="openCallbackModal" class="btn btn-primary">
+  📞 Заказать обратный звонок
+</button>
         </div>
       </div>
     </section>
@@ -131,11 +131,10 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import apiClient from '../api/axios'
 
-const isLoggedIn = ref(false)
-onMounted(() => { isLoggedIn.value = !!localStorage.getItem('token') })
+const isLoggedIn = computed(() => !!localStorage.getItem('token'))
 
 const showCallbackModal = ref(false)
 const isLoading = ref(false)
@@ -144,6 +143,22 @@ const callbackForm = reactive({
   name: '',
   phone: ''
 })
+
+const openCallbackModal = async () => {
+  showCallbackModal.value = true
+
+  if (localStorage.getItem('token')) {
+    try {
+      const profileRes = await apiClient.get('/me')
+      const profile = profileRes.data.data
+      
+      callbackForm.name = profile.name || ''
+      callbackForm.phone = profile.phone || ''
+    } catch (error) {
+      console.error('Ошибка загрузки профиля:', error)
+    }
+  }
+}
 
 const normalizePhone = () => {
   let val = callbackForm.phone.replace(/\s/g, '').replace(/-/g, '').replace(/\(/g, '').replace(/\)/g, '')
@@ -309,7 +324,8 @@ const submitCallback = async () => {
 }
 
 .contact-icon {
-  font-size: 2.5rem;
+  width: 60px;
+  height: 60px;
 }
 
 .contact-item h4 {

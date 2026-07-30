@@ -22,7 +22,6 @@
     </div>
 
     <div v-else class="reports-grid">
-      <!-- Выручка -->
       <div class="glass-card report-card">
         <div class="report-icon">💰</div>
         <h3 class="report-title">Выручка за период</h3>
@@ -30,9 +29,8 @@
         <div class="report-subtitle">Закрытых заказов: {{ revenue.total_orders }}</div>
       </div>
 
-      <!-- Загрузка мастеров -->
       <div class="glass-card report-card full-width">
-        <h3 class="report-title">👷 Загрузка мастеров</h3>
+        <h3 class="report-title"> Загрузка мастеров</h3>
         <div v-if="mechanicsLoad.length === 0" class="empty-report">
           Нет данных за выбранный период
         </div>
@@ -58,7 +56,7 @@
 
       <!-- Популярные услуги -->
       <div class="glass-card report-card full-width">
-        <h3 class="report-title">🔧 Популярные услуги</h3>
+        <h3 class="report-title"> Популярные услуги</h3>
         <div v-if="popularServices.length === 0" class="empty-report">
           Нет данных за выбранный период
         </div>
@@ -82,7 +80,7 @@
 
       <!-- Список клиентов со скидкой -->
       <div v-if="discountedClients.clients.length > 0" class="glass-card report-card full-width">
-        <h3 class="report-title">👥 Клиенты со скидкой</h3>
+        <h3 class="report-title"> Клиенты со скидкой</h3>
         <table class="data-table">
           <thead>
             <tr>

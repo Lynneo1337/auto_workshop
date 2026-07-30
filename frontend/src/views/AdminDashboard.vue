@@ -10,20 +10,20 @@
         :class="['tab-btn', { active: activeTab === 'orders' }]" 
         @click="activeTab = 'orders'"
       >
-         Заявки
+        Заявки <img src="/icons/icons8-сообщение-в-чате-94.png" alt="Заявки" class="custom-icon" />  
       </button>
       <button 
         :class="['tab-btn', { active: activeTab === 'callbacks' }]" 
         @click="activeTab = 'callbacks'"
       >
-        📞 Обратные звонки
+         Обратные звонки <img src="/icons/icons8-телефон-94.png" alt="Телефон" class="custom-icon" />
         <span v-if="unreadCallbacksCount > 0" class="badge">{{ unreadCallbacksCount }}</span>
       </button>
       <button 
         :class="['tab-btn', { active: activeTab === 'reports' }]" 
         @click="activeTab = 'reports'"
       >
-        📊 Отчёты
+         Отчёты <img src="/icons/icons8-отчет-о-статистике-94.png" alt="Отчёты" class="custom-icon" />
       </button>
     </div>
 
@@ -420,6 +420,14 @@ const filteredMechanics = computed(() => {
 </script>
 
 <style scoped>
+
+.custom-icon {
+  width: 24px;
+  height: 24px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
 .service-item {
   display: flex;
   justify-content: space-between;

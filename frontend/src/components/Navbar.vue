@@ -2,7 +2,7 @@
   <nav class="navbar">
     <div class="nav-container">
       <router-link to="/" class="logo">
-        <span class="logo-icon">🔧</span>
+        <img src="/icons/icons8-сервис-94.png" alt="Логотип" class="logo-img" />
         <span class="logo-text">АВТО<span class="red">СЕРВИС</span></span>
       </router-link>
 
@@ -15,7 +15,7 @@
           </li>
           <li v-if="userRole === 'admin'">
             <router-link to="/admin" class="nav-link">
-              🔧 Админ-панель
+              Админ-панель
             </router-link>
           </li>
           <li v-if="userRole === 'mechanic'">
@@ -132,6 +132,11 @@ const logout = () => {
   font-weight: 900;
   letter-spacing: 2px;
   color: white;
+}
+
+.logo-img {
+  width: 40px;
+  height: 40px;
 }
 
 .logo-text .red {
